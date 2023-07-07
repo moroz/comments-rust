@@ -1,25 +1,73 @@
-use lambda_http::{run, service_fn, Body, Error, Request, RequestExt, Response};
+use lambda_http::{
+    ext::PayloadError,
+    http::{header::CONTENT_TYPE, Method},
+    run, service_fn, Body, Error, Request, RequestPayloadExt, Response,
+};
+use serde::{Deserialize, Serialize};
 
-/// This is the main body for the function.
-/// Write your code inside it.
-/// There are some code example in the following URLs:
-/// - https://github.com/awslabs/aws-lambda-rust-runtime/tree/main/examples
-async fn function_handler(event: Request) -> Result<Response<Body>, Error> {
-    // Extract some useful information from the request
-    let who = event
-        .query_string_parameters_ref()
-        .and_then(|params| params.first("name"))
-        .unwrap_or("world");
-    let message = format!("Hello {who}, this is an AWS Lambda HTTP request");
+#[derive(Deserialize, Debug, Default, Serialize)]
+struct CommentParams {
+    pub url: String,
+    pub body: String,
+    pub signature: String,
+    pub email: Option<String>,
+    pub website: Option<String>,
+}
 
-    // Return something that implements IntoResponse.
-    // It will be serialized to the right response event automatically by the runtime
+fn parse_comment_params(request_body: impl Into<String>) -> Result<CommentParams, Error> {
+    let result = serde_json::from_str(&request_body.into()).unwrap();
+    Ok(result)
+}
+
+fn handle_get_request(event: Request) -> Result<Response<Body>, Error> {
+    unimplemented!()
+}
+
+fn verify_content_type(event: &Request) -> bool {
+    match event.headers().get(CONTENT_TYPE) {
+        None => false,
+        Some(value) => match value.to_str() {
+            Ok(value) => value.starts_with("application/json"),
+            _ => false,
+        },
+    }
+}
+
+fn handle_post_request(event: Request) -> Result<Response<Body>, Error> {
+    if !verify_content_type(&event) {
+        return handle_bad_request();
+    }
+
+    let body: Option<CommentParams> = event.payload()?;
+    if body.is_none() {
+        return handle_bad_request();
+    }
+
+    let body = body.unwrap();
+    let response_body = serde_json::to_string(&body).unwrap();
+
     let resp = Response::builder()
         .status(200)
-        .header("content-type", "text/html")
-        .body(message.into())
-        .map_err(Box::new)?;
+        .body(response_body.into())
+        .unwrap();
+    dbg!(body.url);
     Ok(resp)
+}
+
+fn handle_bad_request() -> Result<Response<Body>, Error> {
+    let resp = Response::builder()
+        .status(400)
+        .body("Bad request".into())
+        .unwrap();
+    Ok(resp)
+}
+
+async fn function_handler(event: Request) -> Result<Response<Body>, Error> {
+    match event.method() {
+        &Method::GET => handle_get_request(event),
+        &Method::POST => handle_post_request(event),
+        _ => handle_bad_request(),
+    }
 }
 
 #[tokio::main]
