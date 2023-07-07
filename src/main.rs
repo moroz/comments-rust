@@ -10,7 +10,7 @@ struct CommentParams {
     pub url: String,
     pub body: String,
     pub signature: String,
-    pub email: Option<String>,
+    pub email: String,
     pub website: Option<String>,
 }
 

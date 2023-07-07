@@ -1,6 +1,6 @@
 #!/bin/bash -e
 
-BODY='{"body":"Test","url":"working","signature":"test"}'
+BODY='{"body":"Test","url":"working","signature":"test","email":"test@example.com"}'
 
 ENDPOINT="${ENDPOINT:-http://localhost:9000}"
 
